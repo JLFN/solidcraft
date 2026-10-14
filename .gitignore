@@ -1,6 +1,8 @@
 /target*/
 /plan/
 /dist/
+# Built binaries — canonical builder output (build/linux/build.sh), never committed
+/bin/
 *~
 .DS_Store
 *.swp
