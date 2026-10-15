@@ -74,6 +74,7 @@ fn handshake_and_tools_list() {
         "inspect_design",
         "measure",
         "body_topology",
+        "round_faces",
         "set_parameter",
         "screenshot",
         "export",
@@ -1122,7 +1123,7 @@ fn tool_annotations_tell_the_whole_truth() {
     for name in ["execute", "batch", "save", "export", "open", "screenshot"] {
         assert_eq!(hints(name), (false, true, true), "{name}");
     }
-    for name in ["list_commands", "inspect_design", "measure", "body_topology", "crash_reports"] {
+    for name in ["list_commands", "inspect_design", "measure", "body_topology", "round_faces", "crash_reports"] {
         assert_eq!(hints(name), (true, false, false), "{name}");
     }
     assert_eq!(hints("new_design"), (false, true, false));
@@ -1130,4 +1131,74 @@ fn tool_annotations_tell_the_whole_truth() {
         assert_eq!(hints(name), (false, false, false), "{name}");
     }
     assert!(tools.iter().all(|t| t["annotations"]["readOnlyHint"].is_boolean()), "every tool is annotated");
+}
+
+/// Where round faces sit is readable as numbers, so a bolt circle can be checked without a render:
+/// this is the readout that stands in for the top-view screenshot the modeling skill used to ask for.
+#[test]
+fn round_faces_report_each_hole_its_axis_and_size() {
+    let mut s = server();
+    tool(
+        &mut s,
+        "batch",
+        json!({"commands": [
+            {"command":"parameters.add","params":{"name":"od","expression":"80 mm"}},
+            {"command":"parameters.add","params":{"name":"t","expression":"12 mm"}},
+            {"command":"parameters.add","params":{"name":"bcd","expression":"60 mm"}},
+            {"command":"parameters.add","params":{"name":"bolt","expression":"6.6 mm"}},
+            {"command":"parameters.add","params":{"name":"n","expression":"6","unit":""}},
+            {"command":"sketch.create","params":{"plane":"XY","name":"FlangeSketch"}},
+            {"command":"sketch.draw.dimensioned","params":{
+                "command":"sketch.circle.center","params":{"center":[0,0],"radius":40},
+                "dimensions":{"radius":"od/2"}}},
+            {"command":"sketch.finish","params":{}},
+            {"command":"solid.extrude","params":{"distance":"t","name":"Flange"}},
+            {"command":"solid.cylinder","params":{"diameter":30,"height":"t + 2","base":[0,0,-1],"operation":"cut","name":"Bore"}},
+            {"command":"solid.cylinder","params":{"diameter":"bolt","height":"t + 2","base":["bcd/2",0,-1],"operation":"cut","name":"BoltHole"}},
+            {"command":"solid.pattern.circular","params":{"features":["BoltHole"],"axis":"Z","count":"n","name":"BoltCircle"}}
+        ]}),
+    );
+    let r = tool(&mut s, "round_faces", json!({"body": "Body1"}));
+    let faces: Vec<Value> = r["faces"].as_array().cloned().unwrap_or_default();
+    // One outside wall, one bore wall, six bolt holes. The flats are left out by default.
+    // A closed cylinder is two B-rep pieces sharing one axis (`#1` and `#2`), which `measure`
+    // merges into one face: 16 pieces here are the 8 faces `measure` counts.
+    let m = tool(&mut s, "measure", json!({}));
+    assert_eq!(m["bodies"][0]["faces"], json!(10), "{m}");
+    assert_eq!(m["bodies"][0]["face_types"]["cylinder"], json!(8), "{m}");
+    assert_eq!(r["count"], json!(16), "{r}");
+    assert!(faces.iter().all(|f| f["kind"] == json!("cylinder")), "{r}");
+    let at = |f: &Value, want: f64| f["radius"].as_f64().is_some_and(|x| (x - want).abs() < 1e-6);
+    assert_eq!(faces.iter().filter(|f| at(f, 40.0)).count(), 2, "{r}");
+    assert_eq!(faces.iter().filter(|f| at(f, 15.0)).count(), 2, "{r}");
+    let bolts: Vec<&Value> = faces.iter().filter(|f| at(f, 3.3)).collect();
+    assert_eq!(bolts.len(), 12, "{r}");
+    // Twelve pieces, six holes: each axis lies 30 mm from the part axis, along it. The bolt circle,
+    // as numbers, and the feature-derived name says which feature and which pattern instance made it.
+    let mut axes: Vec<(i64, i64)> = bolts
+        .iter()
+        .map(|b| {
+            let o = b["axis"]["origin"].as_array().cloned().unwrap_or_default();
+            let d = b["axis"]["dir"].as_array().cloned().unwrap_or_default();
+            assert!(d.get(2).and_then(Value::as_f64).is_some_and(|z| z.abs() - 1.0 < 1e-9), "{b}");
+            let f = |i: usize| (o.get(i).and_then(Value::as_f64).unwrap_or_default() * 1e6).round() as i64;
+            (f(0), f(1))
+        })
+        .collect();
+    axes.sort_unstable();
+    axes.dedup();
+    assert_eq!(axes.len(), 6, "{r}");
+    for (x, y) in &axes {
+        let (x, y) = (*x as f64 / 1e6, *y as f64 / 1e6);
+        assert!((x.hypot(y) - 30.0).abs() < 1e-5, "{x} {y} in {r}");
+    }
+    // `kind: all` adds the two flats (the top face and the bottom face).
+    let all = tool(&mut s, "round_faces", json!({"body": "Body1", "kind": "all"}));
+    assert_eq!(all["count"].as_u64().unwrap_or(0) - r["count"].as_u64().unwrap_or(0), 2, "{all}");
+    let planes: Vec<&Value> = all["faces"].as_array().map(|v| v.iter().filter(|f| f["kind"] == json!("plane")).collect()).unwrap_or_default();
+    assert_eq!(planes.len(), 2, "{all}");
+    assert!(planes.iter().all(|f| f["normal"].as_array().is_some_and(|n| n.len() == 3)), "{all}");
+    // A body with no round face of a kind answers with an empty list, not an error.
+    let empty = tool(&mut s, "round_faces", json!({"body": "Body1", "kind": "sphere"}));
+    assert_eq!(empty["count"], json!(0), "{empty}");
 }

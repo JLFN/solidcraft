@@ -124,6 +124,7 @@
   "cmd.mesh_convert": "メッシュを変換",
   "cmd.model_edges": "エッジを一覧表示",
   "cmd.model_faces": "面を一覧表示",
+  "cmd.model.rounds": "円形面を一覧表示",
   "cmd.model_threads": "ねじを一覧表示",
   "cmd.motion_delete": "モーション スタディを削除",
   "cmd.motion_export": "モーション スタディをエクスポート",

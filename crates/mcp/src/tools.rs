@@ -148,6 +148,24 @@ pub fn tool_definitions() -> Vec<Value> {
             Effect::ReadOnly,
         ),
         tool(
+            "round_faces",
+            "Where the holes and round faces are",
+            "Every round face of a body with its size and the axis through it: kind, area, radius and diameter \
+             (cylinders, spheres), the axis origin and direction, a cone's half angle, a torus's radii. Plane faces are \
+             left out unless `kind` asks for them. Use this to check where a hole, boss or fillet ended up, and how \
+             many of them there are, as numbers: a bolt circle of six diameter 6.6 holes comes back as six cylinders \
+             whose axes sit at the circle radius. It costs a few hundred bytes, so prefer it over a render for checking \
+             placement.",
+            obj(
+                json!({
+                    "body": string("Body name, e.g. \"Body1\""),
+                    "kind": string("cylinder, cone, sphere, torus, plane or all (default: the round kinds)"),
+                }),
+                &["body"],
+            ),
+            Effect::ReadOnly,
+        ),
+        tool(
             "set_parameter",
             "Set a parameter",
             "Create or change a user parameter and re-evaluate the timeline. `value` is a number (mm) or an expression \
@@ -387,6 +405,7 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Map<String, Value>) -> Result<V
             let faces = exec(b, "model.faces", p)?;
             Ok(json!({"body": a.get("body"), "edges": edges["edges"], "faces": faces["faces"]}))
         }
+        "round_faces" => exec(b, "model.rounds", pick(a, &["body", "kind"])),
         "set_parameter" => {
             let mut p = pick(a, &["name", "unit", "comment"]);
             p["expression"] = a.get("value").cloned().unwrap_or(Value::Null);
