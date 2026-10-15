@@ -120,6 +120,21 @@ Distances are unsigned. Draw the geometry on the correct side first, and the dim
 
 After `set_parameter L=120` the volume is 35335.2 mm³, and the holes stay in the corners.
 
+## Where the round faces are
+
+`round_faces {"body":"Body1"}` (the command is `model.rounds`) lists every face that lies on an analytic surface, each with its area, its size and the axis through it:
+
+```json
+{"index":5,"name":"F4:side#1","kind":"cylinder","area":123.5,"radius":3.3,"diameter":6.6,
+ "axis":{"origin":[30.0,0.0,0.0],"dir":[0.0,0.0,-1.0]}}
+```
+
+- `kind` is `cylinder`, `cone`, `sphere`, `torus` or `plane`, and `"kind":"all"` adds the planes, which are the bulk of a body and the least interesting.
+- A cone reports `half_angle_deg`, a sphere `center`, a torus `major_radius` and `minor_radius`, a plane `normal` and `point`.
+- A cylinder is a hole, a boss, a fillet or a pin: its radius says which, and its `name` says which feature made it. A face a pattern produced carries the instance too: `F4:side@F5.1` is feature 4's face on the first instance of pattern feature 5.
+- A closed cylinder arrives as two pieces, `#1` and `#2`, with one axis and radius; `measure` merges them, so six holes read as twelve pieces here and eight faces there.
+- This replaces a top-view screenshot for positions: compare each axis with the coordinates you computed, and count what a pattern produced. `measure` cannot see a symmetric move; this can, and it costs a few hundred bytes rather than 90-300 KB.
+
 ## Reading `measure`
 
 - **Tolerance:** analytic and measured volumes agree to about 0.001-0.01%, so treat a gap that small as a match. Long shallow arcs measure worse, about 0.1% (R 1000 mm over 20 degrees).
@@ -138,6 +153,7 @@ After `set_parameter L=120` the volume is 35335.2 mm³, and the holes stay in th
 | `sketch.inspect` | 5 KB per small sketch |
 | `parameters.list {"filter":"feature"}` | 3 KB |
 | `measure {}` | 1 KB: volume, bbox, COM, face/edge/vertex counts |
+| `round_faces {"body":...}` | a few hundred bytes per round face: kind, size, axis |
 | `sketch.solve` | under 100 B: dof, status, profile count |
 | `screenshot {"source":"model","width":480,"height":320}` | one small image. Without `source`, a bridged server returns the whole app window and ignores the size. |
 

@@ -1,6 +1,7 @@
 //! Inspection: measure bodies, describe the document, sketches and model topology.
 
 use serde_json::{Value, json};
+use solidcraft_kernel::FaceSurface;
 use solidcraft_sketch::CurveKind;
 
 use super::CommandSpec;
@@ -18,6 +19,9 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("sketch.inspect", "Inspect Sketch", sketch_inspect).noundo().params("sketch?: id|name (default active)"),
     CommandSpec::new("model.edges", "List Edges", model_edges).noundo().params("body: name"),
     CommandSpec::new("model.faces", "List Faces", model_faces).noundo().params("body: name"),
+    CommandSpec::new("model.rounds", "List Round Faces", model_rounds)
+        .noundo()
+        .params("body: name; kind?: cylinder|cone|sphere|torus|plane|all (default: the round kinds)"),
     CommandSpec::new("model.threads", "List Threads", model_threads).noundo(),
     CommandSpec::new("material.assign", "Physical Material", physical_material)
         .at("SOLID", "MODIFY")
@@ -293,6 +297,71 @@ fn model_faces(s: &mut Session, p: &Value) -> Result<Value> {
         })
         .collect();
     Ok(json!({"body": b.name, "faces": faces}))
+}
+
+/// The analytic surface of each face that has one (`solidcraft_kernel::face_surface`): a hole, a
+/// boss, a fillet, a cone, a sphere or a torus with its size and the axis through it, so where a
+/// round feature sits can be read as numbers instead of looked at in a render. `kind` names one
+/// surface kind; by default only the round kinds are listed, because the plane faces are the bulk
+/// of a body. A free-form face has no analytic surface and is left out.
+fn model_rounds(s: &mut Session, p: &Value) -> Result<Value> {
+    let st = s.world_state();
+    let b = body_of(&st, p, "model.rounds")?;
+    let want = str_(p, "kind").map(|k| k.to_ascii_lowercase());
+    let names = solidcraft_doc::naming::face_names(b);
+    let tol = (b.body.size() * 2e-3).max(1e-3);
+    let mut faces: Vec<Value> = Vec::new();
+    for f in b.body.faces(tol)? {
+        let Some(surf) = solidcraft_kernel::face_surface(&b.body, f.index) else { continue };
+        let kind = surface_kind(&surf);
+        let wanted = match want.as_deref() {
+            Some("all" | "any") => true,
+            Some(k) => k == kind,
+            None => kind != "plane",
+        };
+        if !wanted {
+            continue;
+        }
+        let mut v = json!({"index": f.index, "name": names.get(f.index), "kind": kind, "area": f.area});
+        match surf {
+            FaceSurface::Plane { normal, point } => {
+                v["normal"] = json!(normal);
+                v["point"] = json!(point);
+            }
+            FaceSurface::Cylinder { origin, axis, radius } => {
+                v["radius"] = json!(radius);
+                v["diameter"] = json!(radius * 2.0);
+                v["axis"] = json!({"origin": origin, "dir": axis});
+            }
+            FaceSurface::Cone { apex, axis, half_angle } => {
+                v["half_angle_deg"] = json!(half_angle.to_degrees());
+                v["axis"] = json!({"origin": apex, "dir": axis});
+            }
+            FaceSurface::Sphere { center, radius } => {
+                v["radius"] = json!(radius);
+                v["diameter"] = json!(radius * 2.0);
+                v["center"] = json!(center);
+            }
+            FaceSurface::Torus { center, axis, major, minor } => {
+                v["major_radius"] = json!(major);
+                v["minor_radius"] = json!(minor);
+                v["axis"] = json!({"origin": center, "dir": axis});
+            }
+        }
+        faces.push(v);
+    }
+    Ok(json!({"body": b.name, "count": faces.len(), "faces": faces}))
+}
+
+/// A face's analytic surface, named as `kind` takes it.
+fn surface_kind(s: &FaceSurface) -> &'static str {
+    match s {
+        FaceSurface::Plane { .. } => "plane",
+        FaceSurface::Cylinder { .. } => "cylinder",
+        FaceSurface::Cone { .. } => "cone",
+        FaceSurface::Sphere { .. } => "sphere",
+        FaceSurface::Torus { .. } => "torus",
+    }
 }
 
 fn commands(s: &mut Session, _p: &Value) -> Result<Value> {

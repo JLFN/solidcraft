@@ -47,11 +47,13 @@ Work the part out as numbers first. Then build it in a few large `batch` calls, 
 - **Each stage:** run `measure {}` (about 1 KB) and compare the volume, bbox and face count with your numbers. A cut or hole that leaves the volume unchanged has missed, even though it reported success.
 - **Timeline health:** `inspect_design {"measure":false,"sketches":false}` shows each feature's `error` and `warning`.
 - **Parameter test:** run `set_parameter`. Expect `errors: []`, then `measure` again; the COM and bbox should move by the amounts you computed.
-- **Positions:** `measure` does not say where a feature sits.
-  - On an asymmetric part, check the COM shift you computed.
-  - On a symmetric part (a mirrored or patterned layout) the COM does not move, so take a top-view screenshot and compare distances in pixels against a known size.
-  - `body_topology` is a last resort: it costs 25-45 KB and splits cylinders into half faces.
-- **Final look:** one `screenshot {"source":"model","view":"iso","width":480,"height":320}`. Use `"view":"top"` for features inside walls, which the iso view hides.
+- **Positions:** `measure` does not say where a feature sits. `round_faces {"body":"Body1"}` does, for everything round: each hole, boss, fillet, cone, sphere and torus comes back with its radius or diameter and the axis through it, in a few hundred bytes.
+  - A bolt circle of 6 × Ø6.6 reads as six cylinders whose axes sit at the circle radius; a shelled box shows its inside corners at R - wall.
+  - Compare those axes with the coordinates you computed yourself. That is the check a picture used to make.
+  - On an asymmetric part, the COM shift is a second, cheaper check.
+  - `body_topology` is a last resort for what is not round: it costs 25-45 KB and splits cylinders into half faces.
+- **Final look, for the user rather than for you:** the checks above already prove the part, so take a picture when the user asks to see it, not to verify. `screenshot {"source":"model","view":"iso","width":480,"height":320}`, or `"view":"top"` for features inside walls, which the iso view hides.
+  - An MCP reply is capped (20 KB by default: `GROK_MAX_MCP_OUTPUT_BYTES`, `[mcp] max_output_bytes`), and a render is 90-300 KB, so the image arrives cut and is dropped. Pass `path` in a folder the server allows and read the PNG from disk, or skip the picture.
   - `width` and `height` apply only to model renders.
   - When the server is bridged, `source` defaults to the whole app window and `view` also turns the user's camera, so pass `"source":"model"` and leave out `view` unless the user wants the camera moved.
 
@@ -63,7 +65,7 @@ Work the part out as numbers first. Then build it in a few large `batch` calls, 
 | Thought | Do instead |
 |---|---|
 | "List all commands first" | `reference.md`, or `list_commands {"filter":"<distinctive word>"}`. The unfiltered list is over 100 KB. |
-| "Check positions with body_topology" | `measure` COM and bbox against your numbers. |
+| "Check positions with body_topology" | `round_faces` axes against your numbers. |
 | "Inspect the sketch" | `sketch.solve` returns dof and the profile count in under 100 bytes. Run `sketch.inspect` on its own, never inside a big batch. |
 | "new_design for a clean start" | When the server is bridged, ask first. |
 | "It reported ok, so it worked" | Only a `measure` that matches the computed values counts. |

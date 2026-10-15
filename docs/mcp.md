@@ -79,7 +79,7 @@ file dialogs are never limited.
 ### Tool annotations
 
 Each tool says what it may do, for clients that ask before running tools (or auto-approve on
-these hints). `list_commands`, `inspect_design`, `measure`, `body_topology` and `crash_reports`
+these hints). `list_commands`, `inspect_design`, `measure`, `body_topology`, `round_faces` and `crash_reports`
 are read-only. `set_parameter`, `undo` and `redo` change the design undoably. `new_design`
 replaces it (destructive). `execute`, `batch`, `open`, `save`, `export` and `screenshot` (whose
 `path` writes a file) can read, write, overwrite or delete files: they are not read-only,
@@ -127,6 +127,7 @@ They cover the workflow, the command shapes, how to verify with `measure`, and t
 | `inspect_design` | `measure?` (default true), `sketches?` (default true) | Parameters, timeline (type, suppressed, rolled back, error, warning, timing), bodies (volume, area, centre of mass, bbox, face/edge/vertex counts, visible), sketches (curves, points, constraints, profiles, DOF, solve status, visible), selection, undo depth. Hide helper sketches, bodies or construction planes with `execute` `browser.visibility` (`{items, visible}` or `{folder, visible}`), and joint glyphs with `{joints: [id or name], visible}` or `{folder: "joints", visible}` (a hidden joint still constrains and drives; `joint.list` reports each joint's `visible`). |
 | `measure` | `body?` | Volume (mm³), area (mm²), centre of mass, bbox and topology counts per body, with totals. |
 | `body_topology` | `body` | Edges (index, midpoint, length, ends) and faces (index, area, centroid, normal). An edge midpoint is the `[x,y,z]` that picks that edge for fillet and chamfer. |
+| `round_faces` | `body`, `kind?` (cylinder, cone, sphere, torus, plane, all; default the round kinds) | Every face on an analytic surface with its size and the axis through it: `kind`, `area`, `radius` and `diameter`, `axis: {origin, dir}`, a cone's `half_angle_deg`, a torus's `major_radius`/`minor_radius`, a plane's `normal`/`point`. The `name` says which feature made the face, and which pattern instance (`F4:side@F5.1`). A closed cylinder is two pieces sharing one axis, which `measure` merges. This is how a placement is checked as numbers instead of a render. |
 | `set_parameter` | `name`, `value` (number or expression), `unit?`, `comment?` | Create or change a user parameter and recompute; reports `recomputed` (features rebuilt), `restored` (features whose earlier result for the same inputs was reused, e.g. a value set back) and features that now fail. |
 | `screenshot` | `view?` (iso, top, front, back, bottom, left, right, home, fit, or a named view saved with `view.save`), `camera?` (`{target, yaw, pitch, distance, fov?}`, as `view.apply`), `path?`, `width?`, `height?`, `source?` (window, model) | A PNG image content block. Headless: CPU render fitted to the model, or from the named view or camera. Bridged: the app window (default) or a model render with the app's camera; a named view or camera moves the app's viewport there first (`execute` `view.apply` does the same without a screenshot). |
 | `export` | `path`, `format?` (step, 3mf, 3mf-tagged, stl, stla, obj, urdf), `bodies?`, `mesh_prefix?`, `effort?`, `velocity?` | STEP, 3MF or mesh export; URDF writes the whole assembly with its meshes next to it (`docs/urdf.md`). |

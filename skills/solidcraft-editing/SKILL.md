@@ -48,7 +48,7 @@ Inspect one feature of each kind, not every copy.
    - If not, restore the checkpoint, then apply the changes one at a time, measuring after each.
    - A cut or chamfer that leaves the volume unchanged has missed.
 2. **Timeline health:** run `inspect_design {"measure":false,"sketches":false}`. Every `error` and `warning` must be null. If something broke, restore or `undo` before you try anything else.
-3. **Interior features:** take one top-view screenshot, `{"source":"model","view":"top","width":480,"height":320}`. When the server is bridged, `view` also turns the user's camera. The iso view hides standoffs behind the walls.
+3. **Interior features:** `round_faces {"body":"Body1"}` lists the round ones, each with its radius and the axis through it, so a standoff, a hole or a fillet inside a wall is checked as numbers instead of looked at. Take a top-view screenshot only when the user wants to see the part, and then pass `path` in a folder the server allows and read the PNG: a render is 90-300 KB, an MCP reply is capped at 20 KB, so the image arrives cut and is dropped.
 4. **Still parametric:** if the user wants it kept parametric, change one driving size, `measure`, then set it back.
 
 ## When something is already broken
@@ -71,3 +71,4 @@ Inspect one feature of each kind, not every copy.
 | "Edge points with expressions, so the chamfer follows the size" | They are rejected, and stored picks already follow size changes. |
 | "Pick all 8 rim edges" | One pick on a tangent chain fillets or chamfers the whole chain. |
 | "Measure after every edit" | One batch, one `measure` against the summed prediction. Split only when it misses. |
+| "Screenshot the top view to see where a standoff went" | `round_faces` axes against the position you computed. |

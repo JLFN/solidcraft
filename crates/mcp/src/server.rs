@@ -31,8 +31,9 @@ and degrees in expressions (internally radians), Z is up. Model like in Fusion: 
 and dimension (`sketch.dimension {entities, value}`; values may name parameters), `sketch.finish`, then features \
 (`solid.extrude {distance, operation?: new|join|cut|intersect}`, `solid.revolve`, `solid.fillet {edges: [[x,y,z] point on \
 edge], radius}`, `solid.chamfer`, patterns, mirror, primitives). Use `batch` for several steps at once, \
-`list_commands` for ids and parameter docs, `inspect_design` / `measure` to verify, `body_topology` to find edge points, \
-`set_parameter` to drive the design and `screenshot` to look at it.";
+`list_commands` for ids and parameter docs, `inspect_design` / `measure` to verify, `round_faces` to check where \
+round faces such as holes sit, `body_topology` to find edge points, `set_parameter` to drive the design and \
+`screenshot` to look at it. A reply with one very long field is spilled to a file you can read for the rest.";
 
 pub struct Server {
     backend: Box<dyn Backend>,
